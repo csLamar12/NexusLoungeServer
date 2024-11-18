@@ -71,6 +71,10 @@ public class Order implements Serializable {
         this.status = status;
     }
 
+    public String getOrderIdAsString() {
+        return String.format("%03d", orderId);
+    }
+
     /**
      * Returns a string representation of the Order object.
      */
