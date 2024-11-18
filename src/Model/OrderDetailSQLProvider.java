@@ -10,18 +10,16 @@ import java.util.logging.Logger;
  * Handles SQL operations related to the OrderDetail entity,
  * such as inserting, retrieving, updating, and deleting order details in the database.
  */
-public class OrderDetailSQLProvider {
+public class OrderDetailSQLProvider extends SQLProvider {
 
-    private final Connection connection;
     private static final Logger logger = Logger.getLogger(OrderDetailSQLProvider.class.getName());
 
     /**
      * Initializes the OrderDetailSQLProvider with a database connection.
      *
-     * @param connection the database connection
      */
-    public OrderDetailSQLProvider(Connection connection) {
-        this.connection = connection;
+    public OrderDetailSQLProvider() {
+        super();
     }
 
     /**
@@ -31,7 +29,7 @@ public class OrderDetailSQLProvider {
      */
     public void insertOrderDetail(OrderDetail orderDetail) {
         String query = "INSERT INTO OrderDetail (OrderID, DrinkID, Quantity) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, orderDetail.getOrderId());
             stmt.setInt(2, orderDetail.getDrinkId());
             stmt.setInt(3, orderDetail.getQuantity());
@@ -51,7 +49,7 @@ public class OrderDetailSQLProvider {
     public List<OrderDetail> getOrderDetailsByOrderId(int orderId) {
         String query = "SELECT * FROM OrderDetail WHERE OrderID = ?";
         List<OrderDetail> orderDetails = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, orderId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -77,7 +75,7 @@ public class OrderDetailSQLProvider {
      */
     public void updateOrderDetail(OrderDetail orderDetail) {
         String query = "UPDATE OrderDetail SET DrinkID = ?, Quantity = ? WHERE OrderID = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, orderDetail.getDrinkId());
             stmt.setInt(2, orderDetail.getQuantity());
             stmt.setInt(3, orderDetail.getOrderId());

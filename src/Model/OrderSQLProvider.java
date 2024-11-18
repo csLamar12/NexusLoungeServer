@@ -10,20 +10,18 @@ import java.util.logging.Logger;
  * Handles SQL operations related to the Order entity, such as inserting, retrieving,
  * updating, and deleting orders in the database.
  */
-public class OrderSQLProvider {
+public class OrderSQLProvider extends SQLProvider implements IOrderSvc{
 
     // Connection to the database
-    private final Connection connection;
     // Logger for logging information and errors
     private static final Logger logger = Logger.getLogger(OrderSQLProvider.class.getName());
 
     /**
      * Initializes the OrderSQLProvider with a database connection.
      *
-     * @param connection the database connection
      */
-    public OrderSQLProvider(Connection connection) {
-        this.connection = connection;
+    public OrderSQLProvider() {
+        super();
     }
 
     /**
@@ -34,10 +32,10 @@ public class OrderSQLProvider {
      */
     public int insertOrder(Order order) {
         String query = "INSERT INTO Orders (guestId, bartenderId, orderDate, status) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, order.getGuestId());
             stmt.setInt(2, order.getBartenderId());
-            stmt.setDate(3, new java.sql.Date(order.getOrderDate().getTime()));
+            stmt.setDate(3, new Date(order.getOrderDate().getTime()));
             stmt.setBoolean(4, order.getStatus());
 
             int affectedRows = stmt.executeUpdate();
@@ -70,7 +68,7 @@ public class OrderSQLProvider {
      */
     public Order getOrderById(int id) {
         String query = "SELECT * FROM Orders WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -92,6 +90,61 @@ public class OrderSQLProvider {
     }
 
     /**
+     * Retrieves all orders from the Orders table where status is false.
+     *
+     * @return a list of Order objects with status set to false
+     */
+    public List<Order> getPendingOrders() {
+        String query = "SELECT * FROM Orders WHERE status = FALSE";
+        List<Order> pendingOrders = new ArrayList<>();
+        try (PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Order order = new Order(
+                        rs.getInt("id"),
+                        rs.getInt("guestId"),
+                        rs.getInt("bartenderId"),
+                        rs.getDate("orderDate"),
+                        rs.getBoolean("status")
+                );
+                pendingOrders.add(order);
+            }
+            logger.info("Pending orders retrieved successfully");
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to retrieve pending orders", e);
+        }
+        return pendingOrders;
+    }
+
+    /**
+     * Retrieves all orders from the Orders table where status is true,
+     * ordered by orderDate in descending order (most recent first).
+     *
+     * @return a list of Order objects with status set to true
+     */
+    public List<Order> getServedOrders() {
+        String query = "SELECT * FROM Orders WHERE status = TRUE ORDER BY orderDate DESC";
+        List<Order> servedOrders = new ArrayList<>();
+        try (PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Order order = new Order(
+                        rs.getInt("id"),
+                        rs.getInt("guestId"),
+                        rs.getInt("bartenderId"),
+                        rs.getDate("orderDate"),
+                        rs.getBoolean("status")
+                );
+                servedOrders.add(order);
+            }
+            logger.info("Served orders retrieved successfully and ordered by date (most recent first)");
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to retrieve served orders", e);
+        }
+        return servedOrders;
+    }
+
+
+
+    /**
      * Retrieves all orders from the Orders table.
      *
      * @return a list of Order objects representing all orders in the database
@@ -99,7 +152,7 @@ public class OrderSQLProvider {
     public List<Order> getAllOrders() {
         String query = "SELECT * FROM Orders";
         List<Order> orders = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(query); ResultSet rs = stmt.executeQuery()) {
+        try (PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 Order order = new Order(
                         rs.getInt("id"),
@@ -124,7 +177,7 @@ public class OrderSQLProvider {
      */
     public void updateOrder(Order order) {
         String query = "UPDATE Orders SET guestId = ?, bartenderId = ?, orderDate = ?, status = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, order.getGuestId());
             stmt.setInt(2, order.getBartenderId());
             stmt.setDate(3, new java.sql.Date(order.getOrderDate().getTime()));

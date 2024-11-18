@@ -4,9 +4,12 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Server {
     private static final Logger LOGGER = LogManager.getLogger(Server.class);
+    private static final List<ClientHandler> activeClients = new CopyOnWriteArrayList<>();
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private static final int PORT = 12350;
@@ -34,5 +37,17 @@ public class Server {
         } catch(IOException e){
             LOGGER.error(e);
         }
+    }
+
+    public static void addClient(ClientHandler clientHandler) {
+        activeClients.add(clientHandler);
+    }
+
+    public static void removeClient(ClientHandler clientHandler) {
+        activeClients.remove(clientHandler);
+    }
+
+    public static List<ClientHandler> getActiveClients() {
+        return activeClients;
     }
 }

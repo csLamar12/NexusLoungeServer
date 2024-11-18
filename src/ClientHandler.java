@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ClientHandler implements Runnable {
@@ -15,10 +16,12 @@ public class ClientHandler implements Runnable {
     private DataModel model;
     private ObjectOutputStream out;
     private ObjectInputStream in;
+    private boolean isGuest;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
         this.model = new DataModel();
+        Server.addClient(this);
     }
 
     @Override
@@ -34,12 +37,37 @@ public class ClientHandler implements Runnable {
                     x = authenticate();
             } while (x != 0 && x != 1);
             if (x == 0) {
+                isGuest = true;
                 while (true) {
+                    x++;
                     if (in.readObject().equals("ORDER")) {
                         receiveOrder();
-                    } else if (in.readObject().equals("ORDER_DETAIL")) {
+                    } else {
+                        x = 0;
                         receiveOrderDetail();
+                        break;
                     }
+                }
+            } else {
+                isGuest = false;
+                while (true) {
+                    if (in.readObject().equals("GET_PENDING_ORDER")) {
+                        sendPendingOrders();
+                    } else {
+                        sendServedOrders();
+                        break;
+                    }
+                }
+                while (true){
+                    Object obj = in.readObject();
+                    if (obj.equals("GET_ORDER_DETAIL")) {
+                        sendOrderDetails();
+                    } else if (obj.equals("SERVED_ORDER")) {
+                        receiveServedOrder();
+                    } else if (obj.equals("GET_PENDING_ORDER")) {
+                        sendPendingOrders();
+                    } else
+                        break;
                 }
             }
 
@@ -48,7 +76,9 @@ public class ClientHandler implements Runnable {
             LOGGER.error(e);
         } finally {
             try {
+                Server.removeClient(this);
                 clientSocket.close();
+
             } catch (IOException e) {
                 LOGGER.error(e);
             }
@@ -108,9 +138,79 @@ public class ClientHandler implements Runnable {
 
     public void receiveOrder() throws IOException, ClassNotFoundException {
         Order order = (Order) in.readObject();
+        OrderSQLProvider orderSQLProvider = new OrderSQLProvider();
+        order.setOrderId(orderSQLProvider.insertOrder(order));
+        out.writeObject(order);
+        out.flush();
+//        broadcastNewOrder(order);
     }
 
     public void receiveOrderDetail() throws IOException, ClassNotFoundException {
-        OrderDetail orderDetail = (OrderDetail) in.readObject();
+        List<OrderDetail> orderDetails = (List<OrderDetail>) in.readObject();
+
+        for (OrderDetail orderDetail : orderDetails) {
+            System.out.println(orderDetail.toString());
+            new OrderDetailSQLProvider().insertOrderDetail(orderDetail);
+        }
     }
+
+    public void receiveServedOrder() throws IOException, ClassNotFoundException {
+        Order order = (Order) in.readObject();
+        order.setStatus(true);
+        new OrderSQLProvider().updateOrder(order);
+    }
+
+    public void sendPendingOrders() throws IOException {
+        OrderSQLProvider orderSQLProvider = new OrderSQLProvider();
+        List<Order> orders = orderSQLProvider.getPendingOrders();
+        out.writeObject(orders);
+        out.flush();
+    }
+
+    public void notifyPendingOrders() {
+        try {
+            sendPendingOrders();
+            LOGGER.info("Notify pending orders");
+        } catch (IOException e) {
+            LOGGER.error("Failed to notify client about pending orders", e);
+        }
+    }
+
+    public void sendServedOrders() throws IOException {
+        OrderSQLProvider orderSQLProvider = new OrderSQLProvider();
+        List<Order> orders = orderSQLProvider.getServedOrders();
+        out.writeObject(orders);
+        out.flush();
+    }
+
+    public void sendOrderDetails() throws IOException, ClassNotFoundException {
+        OrderDetailSQLProvider orderDetailSQLProvider = new OrderDetailSQLProvider();
+        Order order = (Order) in.readObject();
+        List<OrderDetail> orderDetails = orderDetailSQLProvider.getOrderDetailsByOrderId(order.getOrderId());
+        out.writeObject(orderDetails);
+        out.flush();
+        List<Drink> drinks = new ArrayList<>();
+        for (OrderDetail orderDetail : orderDetails) {
+            drinks.add(new DrinkSQLProvider().getDrinkById(orderDetail.getDrinkId()));
+        }
+        out.writeObject(drinks);
+        out.flush();
+    }
+
+    public void broadcastNewOrder(Order order) {
+        for (ClientHandler client : Server.getActiveClients()) {
+            if (client != this && !client.isGuest) {
+                try {
+                    client.out.writeObject("NEW_ORDER");
+                    client.out.flush();
+                    client.out.writeObject(order);
+                    client.out.flush();
+                } catch (IOException e) {
+                    LOGGER.error("Error notifying Manager/Bartender about new order", e);
+                }
+            }
+        }
+    }
+
+
 }
