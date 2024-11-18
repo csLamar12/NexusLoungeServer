@@ -27,23 +27,40 @@ public class OrderSQLProvider {
     }
 
     /**
-     * Inserts a new order into the Orders table.
+     * Inserts a new order into the Orders table and returns the generated orderID.
      *
      * @param order the Order object containing the order details to be inserted
+     * @return the generated primary key (orderID) for the new order, or -1 if the operation failed
      */
-    public void insertOrder(Order order) {
+    public int insertOrder(Order order) {
         String query = "INSERT INTO Orders (guestId, bartenderId, orderDate, status) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try (PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, order.getGuestId());
             stmt.setInt(2, order.getBartenderId());
             stmt.setDate(3, new java.sql.Date(order.getOrderDate().getTime()));
             stmt.setBoolean(4, order.getStatus());
-            stmt.executeUpdate();
-            logger.info("Order inserted successfully with guest ID: " + order.getGuestId());
+
+            int affectedRows = stmt.executeUpdate();
+            if (affectedRows == 0) {
+                throw new SQLException("Inserting order failed, no rows affected.");
+            }
+
+            // Retrieve the generated keys
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    int orderId = generatedKeys.getInt(1); // Get the first column value as the primary key
+                    logger.info("Order inserted successfully with order ID: " + orderId);
+                    return orderId;
+                } else {
+                    throw new SQLException("Inserting order failed, no ID obtained.");
+                }
+            }
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Failed to insert order", e);
         }
+        return -1; // Return -1 to indicate failure
     }
+
 
     /**
      * Retrieves an order by its ID.

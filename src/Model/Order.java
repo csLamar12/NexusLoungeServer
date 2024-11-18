@@ -31,6 +31,21 @@ public class Order implements Serializable {
         this.status = status;
     }
 
+    /**
+     * Constructs an Order object with the specified details (Without ID).
+     *
+     * @param guestId      the ID of the guest who placed the order
+     * @param bartenderId  the ID of the bartender handling the order
+     * @param orderDate    the date the order was placed
+     * @param status       the status of the order (e.g., completed or pending)
+     */
+    public Order(int guestId, int bartenderId, Date orderDate, boolean status) {
+        this.guestId = guestId;
+        this.bartenderId = bartenderId;
+        this.orderDate = orderDate;
+        this.status = status;
+    }
+
     public int getOrderId() {
         return orderId;
     }

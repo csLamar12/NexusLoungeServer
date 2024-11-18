@@ -3,6 +3,7 @@ package Model;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -36,11 +37,26 @@ public class DataModel {
         }
     }
 
-    public void addGuest(Users user){
+    public Guests addGuest(Users user){
         Guests guest = (Guests) user;
         int id = new UsersSQLProvider().insertUser(user);
         guest.setId(id);
         new GuestsSQLProvider().insertGuests(guest);
+        return guest;
+    }
+
+    public int getGuestAge(Guests guest){
+        guest = new GuestsSQLProvider().searchGuests(guest);
+        guest.calculateAge();
+        return guest.getAge();
+    }
+
+    public Date getGuestDOB(Users user){
+        Guests guest = new Guests();
+        guest.setId(user.getId());
+        guest = new GuestsSQLProvider().searchGuests(guest);
+        return guest.getdOB();
+
     }
 
     public List<Drink> getAlcoholicDrinks() {

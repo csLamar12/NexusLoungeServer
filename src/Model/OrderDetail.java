@@ -1,9 +1,11 @@
 package Model;
 
+import java.io.Serializable;
+
 /**
  * Represents the details of an order, including the order ID, the drink ID, and the quantity ordered.
  */
-public class OrderDetail {
+public class OrderDetail implements Serializable {
 
     private int orderId;
     private int drinkId;
